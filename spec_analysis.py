@@ -2,7 +2,7 @@
 """
 
 Created on Fri Oct 10 15:19:35 2025
-@author: Asus
+@author: Isuru Withanawasam
 """
 
 from PIL import Image
@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 from scipy.optimize import curve_fit
+import math
 
 
 # --- Input Files ---
@@ -47,6 +48,8 @@ S_wo = full_h_profile_no_filter
 
 plt.figure()
 plt.imshow(img_cleaned_no_filter)
+plt.xlabel('Pixels')
+plt.ylabel('Pixels')
 plt.show()
 
 
@@ -283,11 +286,95 @@ plt.grid(True)
 plt.show()
 
 #print(energy_axis_full)
-print(np.size(S_wo[1:len(S_wo)]))
+#print(np.size(S_wo[1:len(S_wo)]))
+
+
+########################################
+
+# Calculate the horizontal (spectral) profile by summing vertically
+full_v_profile_no_filter = np.sum(img_cleaned_no_filter, axis=1)
+b_prof=full_v_profile_no_filter
+
+v_lenght=np.size(b_prof)
+vpix=np.arange(0,v_lenght)
+
+phy_lenght=40 #mm
+
+y=vpix*(phy_lenght/(v_lenght-1))
+
+plt.plot(y,b_prof)
+plt.xlabel('y (mm)')
+plt.ylabel('Intensity (counts)')
+plt.grid(True)
+plt.show()
 
 
 
+# Example: replace these with your actual arrays
+x = np.array(y)  # x-values
+I = np.array(b_prof)  # I-values
+
+# Define the Gaussian function with offset
+def gaussian_with_offset(x, A, x0, win, B):
+    return A * np.exp(-2 * ((x - x0)**2) / win**2) + B
+
+# Initial guess for parameters: [A, x0, win, B]
+initial_guess = [max(I)-min(I), x[np.argmax(I)], (max(x)-min(x))/4, min(I)]
+
+# Fit the curve
+popt, pcov = curve_fit(gaussian_with_offset, x, I, p0=initial_guess)
+
+# Extract fitted parameters
+A_fit, x0_fit, win_fit, B_fit = popt
+print("Fitted parameters:")
+print(f"A = {A_fit}")
+print(f"x0 = {x0_fit}")
+print(f"win = {win_fit}")
+print(f"B = {B_fit}")
+
+# Compute fitted curve
+I_fit = gaussian_with_offset(x, *popt)
+
+# Plot original data and fitted curve
+plt.plot(x, I, 'b', label='Data')
+plt.plot(x, I_fit, 'r-', label='Fitted curve')
+plt.xlabel('y (mm)')
+plt.ylabel('Intensity (counts)')
+#plt.title('Gaussian Fit with Offset')
+plt.legend()
+plt.show()
+
+D=2.5
 
 
+
+teta = win_fit * (1e-3) / D
+theta_XUV = teta
+
+print(f"Divergence of beam (rad) = {teta}")
+print(f"Divergence of beam (XUV) (rad) = {theta_XUV}")
+
+# Convert to degrees
+teta_deg = teta * 180 / math.pi
+theta_XUV_deg = theta_XUV * 180 / math.pi
+
+#print(f"Divergence of beam (deg) = {teta_deg}")
+#print(f"Divergence of beam (XUV) (deg) = {theta_XUV_deg}")
+
+### from previous code
+f = 90e-2  # m
+w_h = 8.2799e-3  # m
+w_v = 8.2082e-3  # m
+
+theta_IR = w_v / f
+print(f"Divergence of beam (IR) (rad) = {theta_IR}")
+
+# Convert IR divergence to degrees
+theta_IR_deg = theta_IR * 180 / math.pi
+#print(f"Divergence of beam (IR) (deg) = {theta_IR_deg}")
+
+# Ratio
+ratio_XUV_IR = theta_XUV / theta_IR
+print(f"Ratio (XUV/IR) = {ratio_XUV_IR}")
 
 
